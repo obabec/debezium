@@ -3,6 +3,9 @@ pipeline {
         label 'NodeXL'
     }
 
+    environment {
+        OCP_URL_FINAL = "${params.OCP_URL}"
+    }
     stages {
         stage('Checkout - Debezium') {
             steps {
@@ -84,14 +87,6 @@ pipeline {
             }
         }
 
-        stage("Configure env") {
-            steps {
-                sh '''
-                    export OCP_URL_FINAL = ""
-                '''
-            }
-        }
-
         stage("Create openshift cluster (if needed)") {
             when() {
                 expression { params.OCP_URL == "" }
@@ -99,7 +94,7 @@ pipeline {
             steps {
                 sh '''
                     export CLUSTER_NAME=$(echo $RANDOM | md5sum | head -c 10)
-                    OCP_URL_FINAL = "https://api.${CLUSTER_NAME}.dbz.cechacek.net:6443"
+                    OCP_URL_FINAL="https://api.${CLUSTER_NAME}.dbz.cechacek.net:6443"
                 '''
                 build job: 'ocp-cluster-deployment', parameters: [
                         string(name: 'CLUSTER_NAME', value: ${CLUSTER_NAME}),
