@@ -97,8 +97,8 @@ pipeline {
                     OCP_URL_FINAL="https://api.${CLUSTER_NAME}.dbz.cechacek.net:6443"
                 '''
                 build job: 'ocp-cluster-deployment', parameters: [
-                        string(name: 'CLUSTER_NAME', value: ${CLUSTER_NAME}),
-                        booleanParam(name: 'REMOVE_CLUSTER', value: false)
+                        string(name: 'CLUSTER_NAME', value: "${CLUSTER_NAME}"),
+                        booleanParam(name: 'REMOVE_CLUSTER', value: false),
                 ]
             }
         }
