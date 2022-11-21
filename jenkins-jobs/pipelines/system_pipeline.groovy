@@ -84,6 +84,30 @@ pipeline {
             }
         }
 
+        stage("Create openshift cluster (if needed)") {
+            steps {
+                sh '''
+                    export OCP_URL_FINAL = ""
+                '''
+            }
+        }
+
+        stage("Create openshift cluster (if needed)") {
+            when() {
+                expression { params.OCP_URL == "" }
+            }
+            steps {
+                sh '''
+                    export CLUSTER_NAME=$(echo $RANDOM | md5sum | head -c 10)
+                    OCP_URL_FINAL = "https://api.${CLUSTER_NAME}.dbz.cechacek.net:6443"
+                '''
+                build job: 'ocp-cluster-deployment', parameters: [
+                        string(name: 'CLUSTER_NAME', value: ${CLUSTER_NAME}),
+                        booleanParam(name: 'REMOVE_CLUSTER', value: false)
+                ]
+            }
+        }
+
         stage('Configure') {
             steps {
                 script {
@@ -259,6 +283,18 @@ pipeline {
                     -Dgroups="${TEST_TAG_EXPRESSION}"
                     '''
                 }
+            }
+        }
+
+        stage("Delete cluster (if deployed)") {
+            when() {
+                expression { params.OCP_URL == "" }
+            }
+            steps {
+                build job: 'ocp-cluster-deployment', parameters: [
+                        string(name: 'CLUSTER_NAME', value: ${CLUSTER_NAME}),
+                        booleanParam(name: 'REMOVE_CLUSTER', value: true)
+                ]
             }
         }
     }
