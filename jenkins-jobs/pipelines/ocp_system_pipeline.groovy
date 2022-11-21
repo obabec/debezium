@@ -12,6 +12,9 @@ pipeline {
         stage('Clean up ws') {
             steps {
                 cleanWs()
+                sh '''
+                    export OCP_URL_FINAL=="${param.OCP_URL}"
+                '''
             }
         }
 
@@ -80,6 +83,22 @@ pipeline {
             }
         }
 
+        stage("Create openshift cluster (if needed)") {
+            when() {
+                expression { params.OCP_URL == "" }
+            }
+            steps {
+                sh '''
+                    export CLUSTER_NAME=$(echo $RANDOM | md5sum | head -c 10)
+                    OCP_URL_FINAL = "https://api.${CLUSTER_NAME}.dbz.cechacek.net:6443"
+                '''
+                build job: 'ocp-cluster-deployment', parameters: [
+                        string(name: 'CLUSTER_NAME', value: ${CLUSTER_NAME}),
+                        booleanParam(name: 'REMOVE_CLUSTER', value: false)
+                ]
+            }
+        }
+
         stage('Configure namespaces') {
             steps {
                 withCredentials([
@@ -87,7 +106,7 @@ pipeline {
                         file(credentialsId: "${params.PULL_SECRET}", variable: 'SECRET_PATH'),
                 ]) {
                     sh '''
-                    oc login -u "${OCP_USERNAME}" -p "${OCP_PASSWORD}" --insecure-skip-tls-verify=true "${OCP_URL}"
+                    oc login -u "${OCP_USERNAME}" -p "${OCP_PASSWORD}" --insecure-skip-tls-verify=true "${OCP_URL_FINAL}"
 
                     # create projects
                     cd ${DEBEZIUM_LOCATION}

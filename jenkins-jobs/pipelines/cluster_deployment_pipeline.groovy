@@ -75,7 +75,7 @@ pipeline {
                             ansible-vault decrypt --vault-password-file ../password.txt *
                             cd ..
                             mv ./secrets/* ./
-                            export AWS_SHARED_CREDENTIALS_FILE=/home/jenkins/.aws/credentials && osia install --cluster-name ${CLUSTER_NAME} --cloud aws --installer-version ${INSTALLER_VERSION} --cloud-env dbz-aws
+                            export AWS_SHARED_CREDENTIALS_FILE=/home/jenkins/.aws/credentials && osia install --cluster-name ${CLUSTER_NAME} --cloud aws "${(INSTALLER_VERSION != "") ? " --installer-version '${INSTALLER_VERSION}'" : ""}" --cloud-env dbz-aws
                             export KUBECONFIG="${WORKSPACE}/OSIA-dbz/${CLUSTER_NAME}/auth/kubeconfig"
                             oc create secret generic htpass-secret --from-file=htpasswd=ocp-users.htpasswd -n openshift-config
                             oc apply -f htpasswd.cr.yaml -n openshift-config
