@@ -254,6 +254,18 @@ pipeline {
                 }
             }
         }
+
+        stage("Delete cluster (if deployed)") {
+            when() {
+                expression { params.OCP_URL == "" }
+            }
+            steps {
+                build job: 'ocp-cluster-deployment', parameters: [
+                        string(name: 'CLUSTER_NAME', value: ${CLUSTER_NAME}),
+                        booleanParam(name: 'REMOVE_CLUSTER', value: true)
+                ]
+            }
+        }
     }
     post {
         always {
