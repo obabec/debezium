@@ -5,6 +5,7 @@ pipeline {
 
     environment {
         OCP_URL_FINAL = "${params.OCP_URL}"
+        CLUSTER_NAME = ""
     }
     stages {
         stage('Checkout - Debezium') {
@@ -92,14 +93,26 @@ pipeline {
                 expression { params.OCP_URL == "" }
             }
             steps {
-                sh '''
-                    export CLUSTER_NAME=$(echo $RANDOM | md5sum | head -c 10)
-                    OCP_URL_FINAL="https://api.${CLUSTER_NAME}.dbz.cechacek.net:6443"
-                '''
-                build job: 'ocp-cluster-deployment', parameters: [
-                        string(name: 'CLUSTER_NAME', value: "${CLUSTER_NAME}"),
-                        booleanParam(name: 'REMOVE_CLUSTER', value: false),
-                ]
+                script {
+                    CLUSTER_NAME=sh(returnStdout: true, script: 'openssl rand -hex 4').trim()
+                    env.OCP_URL_FINAL="https://api.${CLUSTER_NAME}.dbz.cechacek.net:6443"
+                }/*
+                build job: "ocp-cluster-deployment", wait: true, propagate: false, parameters: [
+                        [$class: 'StringParameterValue', name: 'CLUSTER_NAME', value: CLUSTER_NAME],
+                        [$class: 'StringParameterValue', name: 'INSTALLER_VERSION', value: "latest-4.11"],
+                        [$class: 'BooleanParameterValue', name: 'REMOVE_CLUSTER', value: false],
+                ]*/
+            }
+        }
+
+        stage("Testino kapparino") {
+            when() {
+                expression { params.OCP_URL == "" }
+            }
+            steps {
+                script {
+                    echo "My url is: ${OCP_URL_FINAL}"
+                }
             }
         }
 
@@ -138,7 +151,7 @@ pipeline {
                     sh '''
                     set -x
                     docker login -u=${QUAY_USERNAME} -p=${QUAY_PASSWORD} quay.io
-                    oc login ${OCP_URL} -u "${OCP_USERNAME}" --password="${OCP_PASSWORD}" --insecure-skip-tls-verify=true >/dev/null
+                    oc login ${OCP_URL_FINAL} -u "${OCP_USERNAME}" --password="${OCP_PASSWORD}" --insecure-skip-tls-verify=true >/dev/null
                     '''
 
                     sh '''
@@ -185,7 +198,7 @@ pipeline {
                 ]) {
                     sh '''
                     set -x
-                    oc login ${OCP_URL} -u "${OCP_USERNAME}" --password="${OCP_PASSWORD}" --insecure-skip-tls-verify=true >/dev/null
+                    oc login ${OCP_URL_FINAL} -u "${OCP_USERNAME}" --password="${OCP_PASSWORD}" --insecure-skip-tls-verify=true >/dev/null
                     '''
                     sh '''
                     set -x
@@ -264,7 +277,7 @@ pipeline {
                     -Docp.project.oracle="${OCP_PROJECT_ORACLE}" \\
                     -Docp.username="${OCP_USERNAME}" \\
                     -Docp.password="${OCP_PASSWORD}" \\
-                    -Docp.url="${OCP_URL}" \\
+                    -Docp.url="${OCP_URL_FINAL}" \\
                     -Docp.pull.secret.paths="${SECRET_PATH}" \\
                     -Dstrimzi.kc.build=${TEST_CONNECT_STRZ_BUILD} \\
                     -Dimage.tag.suffix="${IMAGE_TAG_SUFFIX}" \\
@@ -287,7 +300,7 @@ pipeline {
             }
             steps {
                 build job: 'ocp-cluster-deployment', parameters: [
-                        string(name: 'CLUSTER_NAME', value: ${CLUSTER_NAME}),
+                        string(name: 'CLUSTER_NAME', value: env.CLUSTER_NAME),
                         booleanParam(name: 'REMOVE_CLUSTER', value: true)
                 ]
             }
