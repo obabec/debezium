@@ -84,7 +84,7 @@ pipeline {
             }
         }
 
-        stage("Create openshift cluster (if needed)") {
+        stage("Configure env") {
             steps {
                 sh '''
                     export OCP_URL_FINAL = ""
