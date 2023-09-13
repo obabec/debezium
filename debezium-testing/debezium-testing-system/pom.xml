@@ -497,6 +497,7 @@
                 <test.strimzi.kc.log.level.dbz>${strimzi.kc.log.level.dbz}</test.strimzi.kc.log.level.dbz>
 
                 <!--Apicurio configuration-->
+                <test.prepare.apicurio>${prepare.apicurio}</test.prepare.apicurio>
                 <test.apicurio.crd.version>${apicurio.crd.version}</test.apicurio.crd.version>
                 <test.apicurio.log.level>${apicurio.log.level}</test.apicurio.log.level>
                 <test.apicurio.operator.channel>${apicurio.operator.channel}</test.apicurio.operator.channel>

@@ -36,14 +36,15 @@ public class OcpStrimziOperator extends TestFixture {
     @Override
     public void setup() throws Exception {
         // in case productised amq streams is used - skip operator creation
+        StrimziOperatorController operatorController;
         if (PREPARE_NAMESPACES_AND_STRIMZI) {
-            StrimziOperatorController operatorController = new StrimziOperatorDeployer(project, ocp, null).deploy();
+            operatorController = new StrimziOperatorDeployer(project, ocp, null).deploy();
             operatorController.waitForAvailable();
         }
         else {
+            operatorController = StrimziOperatorController.forProject(project, ocp);
             LOGGER.info("Skipping " + OpenshiftOperatorEnum.STRIMZI.getName() + " deployment");
         }
-        StrimziOperatorController operatorController = StrimziOperatorController.forProject(project, ocp);
         updateStrimziOperator(operatorController);
         store(StrimziOperatorController.class, operatorController);
     }

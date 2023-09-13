@@ -54,7 +54,7 @@ public class NamespacePreparationListener implements TestExecutionListener {
 
     public void testPlanExecutionFinished(TestPlan testPlan) {
         // execute only after integration tests
-        if (ConfigProperties.OCP_PROJECT_DBZ != null && ConfigProperties.PREPARE_NAMESPACES_AND_STRIMZI) {
+        if (ConfigProperties.OCP_PROJECT_DBZ != null && ConfigProperties.PREPARE_NAMESPACES_AND_STRIMZI && ConfigProperties.PREPARE_NAMESPACES_APICURIO) {
             LOGGER.info("Cleaning namespaces");
 
             // delete projects if project names are set
@@ -96,6 +96,11 @@ public class NamespacePreparationListener implements TestExecutionListener {
                         .build());
 
         for (String project : projectNames) {
+            if ((project.equals(ConfigProperties.OCP_PROJECT_DBZ) && !ConfigProperties.PREPARE_NAMESPACES_AND_STRIMZI) ||
+                    (project.equals(ConfigProperties.OCP_PROJECT_REGISTRY) && !ConfigProperties.PREPARE_NAMESPACES_APICURIO)) {
+                LOGGER.info("Skipping creation on " + project + " project");
+                continue;
+            }
             processNamespace(project, anyUidBindingBuilder, privilegedBindingBuilder);
         }
 

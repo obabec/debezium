@@ -6,6 +6,7 @@
 package io.debezium.testing.system.fixtures.operator;
 
 import static io.debezium.testing.system.tools.ConfigProperties.OCP_PROJECT_REGISTRY;
+import static io.debezium.testing.system.tools.ConfigProperties.PREPARE_NAMESPACES_APICURIO;
 
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -35,7 +36,16 @@ public class OcpApicurioOperator extends TestFixture {
 
     @Override
     public void setup() throws Exception {
-        ApicurioOperatorController controller = new ApicurioOperatorDeployer(project, ocp, null).deploy();
+        ApicurioOperatorController controller;
+        if (PREPARE_NAMESPACES_APICURIO) {
+            controller = new ApicurioOperatorDeployer(project, ocp, null).deploy();
+            controller.waitForAvailable();
+
+        }
+        else {
+            controller = ApicurioOperatorController.forProject(project, ocp);
+            LOGGER.info("Skipping " + OpenshiftOperatorEnum.APICURIO.getName() + " deployment");
+        }
         updateApicurioOperator(controller);
         store(controller);
     }
