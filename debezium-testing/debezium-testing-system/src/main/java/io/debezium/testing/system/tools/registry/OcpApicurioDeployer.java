@@ -18,6 +18,9 @@ import io.fabric8.openshift.client.OpenShiftClient;
 
 import okhttp3.OkHttpClient;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * Deployment management for Apicurio service registry OCP deployment
  *
@@ -38,8 +41,12 @@ public class OcpApicurioDeployer extends AbstractOcpDeployer<OcpApicurioControll
     public OcpApicurioController deploy() throws InterruptedException {
         LOGGER.info("Deploying Apicurio Registry to '" + project + "'");
 
-        ApicurioRegistry registry = fabricBuilder.build();
-        registry = registryOperation().createOrReplace(registry);
+        ApicurioRegistry registry = registryOperation().list().getItems().stream().filter(l -> l.getMetadata().getName().contains("debezium-deployment")).findFirst().orElse(null);
+
+        if (registry == null) {
+            fabricBuilder.build();
+            registry = registryOperation().createOrReplace(registry);
+        }
 
         OcpApicurioController controller = getController(registry);
         controller.waitForRegistry();

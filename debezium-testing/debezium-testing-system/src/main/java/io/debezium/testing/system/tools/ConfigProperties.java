@@ -64,7 +64,7 @@ public final class ConfigProperties {
     // Apicurio Registry configuration
     public static final String APICURIO_LOG_LEVEL = System.getProperty("test.apicurio.log.level", "INFO");
     public static final String APICURIO_OPERATOR_CHANNEL = System.getProperty("test.apicurio.operator.channel", "2.x");
-    public static final boolean PREPARE_NAMESPACES_APICURIO = booleanProperty("test.prepare.apicurio");
+    public static final boolean PREPARE_NAMESPACES_APICURIO = booleanProperty("test.prepare.apicurio", true);
 
     // MySql Configuration
     public static final String DATABASE_MYSQL_USERNAME = System.getProperty("test.database.mysql.username", "mysqluser");
