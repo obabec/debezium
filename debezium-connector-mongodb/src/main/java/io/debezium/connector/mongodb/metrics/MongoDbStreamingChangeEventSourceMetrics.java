@@ -93,7 +93,9 @@ public class MongoDbStreamingChangeEventSourceMetrics extends DefaultStreamingCh
         }
 
         var duration = Duration.between(prePollTimestamp, now).toMillis();
-        timer.set(duration);
+        if (duration > 0) {
+            timer.set(duration);
+        }
         counter.incrementAndGet();
     }
 
