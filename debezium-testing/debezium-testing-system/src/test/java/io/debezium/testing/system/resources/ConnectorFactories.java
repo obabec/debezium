@@ -74,7 +74,7 @@ public class ConnectorFactories {
                 .put("topic.prefix", cb.getDbServerName())
                 .put("connector.class", "io.debezium.connector.sqlserver.SqlServerConnector")
                 .put("task.max", 1)
-                .put("database.hostname", dbHost)
+                .put("database.hostname", ConfigProperties.DATABASE_SQLSERVER_HOST)
                 .put("database.port", dbPort)
                 .put("database.user", ConfigProperties.DATABASE_SQLSERVER_DBZ_USERNAME)
                 .put("database.password", ConfigProperties.DATABASE_SQLSERVER_DBZ_PASSWORD)
