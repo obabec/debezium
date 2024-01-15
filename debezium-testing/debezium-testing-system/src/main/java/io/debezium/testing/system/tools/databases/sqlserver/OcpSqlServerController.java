@@ -5,6 +5,8 @@
  */
 package io.debezium.testing.system.tools.databases.sqlserver;
 
+import static io.debezium.testing.system.tools.ConfigProperties.DATABASE_SQLSERVER_HOST;
+import static io.debezium.testing.system.tools.ConfigProperties.DATABASE_SQLSERVER_PORT;
 import static io.debezium.testing.system.tools.ConfigProperties.DATABASE_SQLSERVER_SA_PASSWORD;
 
 import java.net.URISyntaxException;
@@ -45,15 +47,15 @@ public class OcpSqlServerController extends OcpSqlDatabaseController {
 
     @Override
     public String getPublicDatabaseUrl() {
-        return "jdbc:" + getDatabaseType() + "://" + getPublicDatabaseHostname() + ":" + getPublicDatabasePort()
+        return "jdbc:" + getDatabaseType() + "://" + DATABASE_SQLSERVER_HOST.orElse(getPublicDatabaseHostname()) + ":" + getPublicDatabasePort()
                 + ";encrypt=false";
     }
 
     public void initialize() throws InterruptedException {
         Pod pod = ocp.pods().inNamespace(project).withLabel("deployment", name).list().getItems().get(0);
-        ocp.pods().inNamespace(project).withName(pod.getMetadata().getName())
+        /*ocp.pods().inNamespace(project).withName(pod.getMetadata().getName())
                 .file(DB_INIT_SCRIPT_PATH_CONTAINER)
                 .upload(initScript);
-        executeInitCommand(deployment, "/opt/mssql-tools/bin/sqlcmd", "-U", "sa", "-P", DATABASE_SQLSERVER_SA_PASSWORD, "-i", DB_INIT_SCRIPT_PATH_CONTAINER);
+        executeInitCommand(deployment, "/opt/mssql-tools/bin/sqlcmd", "-U", "sa", "-P", DATABASE_SQLSERVER_SA_PASSWORD, "-i", DB_INIT_SCRIPT_PATH_CONTAINER);*/
     }
 }
