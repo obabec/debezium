@@ -5,8 +5,10 @@
  */
 package io.debezium.testing.system.tools.kafka.docker;
 
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.debezium.testing.system.tools.WaitConditions;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 
@@ -42,6 +44,7 @@ public class KafkaContainer extends GenericContainer<KafkaContainer> {
         withEnv("KAFKA_ADVERTISED_LISTENERS", "PLAINTEXT://" + getPublicBootstrapAddress() + ",BROKER://" + getBootstrapAddress());
         withEnv("KAFKA_LISTENER_SECURITY_PROTOCOL_MAP", "BROKER:PLAINTEXT,PLAINTEXT:PLAINTEXT");
         withEnv("KAFKA_INTER_BROKER_LISTENER_NAME", "BROKER");
+        withStartupTimeout(Duration.ofMinutes(WaitConditions.scaled(1)));
     }
 
     public KafkaContainer withZookeeper(ZookeeperContainer zookeeper) {

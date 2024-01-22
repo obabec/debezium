@@ -5,9 +5,12 @@
  */
 package io.debezium.testing.system.tools.kafka.docker;
 
+import io.debezium.testing.system.tools.WaitConditions;
 import org.testcontainers.containers.GenericContainer;
 
 import io.debezium.testing.system.tools.ConfigProperties;
+
+import java.time.Duration;
 
 public class ZookeeperContainer extends GenericContainer<ZookeeperContainer> {
 
@@ -30,6 +33,7 @@ public class ZookeeperContainer extends GenericContainer<ZookeeperContainer> {
     private void defaultConfig() {
         withExposedPorts(ZOOKEEPER_PORT_CLIENT);
         withCommand(ZOOKEEPER_COMMAND);
+        withStartupTimeout(Duration.ofMinutes(WaitConditions.scaled(1)));
     }
 
 }
