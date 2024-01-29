@@ -24,7 +24,7 @@ public abstract class OcpDatabaseFixture<T extends DatabaseController<?>> extend
     @Override
     public void teardown() throws Exception {
         if (dbController != null && !ConfigProperties.PREPARE_NAMESPACES_AND_STRIMZI) {
-            dbController.reload();
+            //dbController.reload();
         }
     }
 }
