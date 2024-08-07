@@ -134,8 +134,10 @@ You can find more information about snapshots in the following sections:
 * xref:debezium-sqlserver-incremental-snapshots[]
 endif::product[]
 
-[[default-workflow-for-performing-an-initial-snapshot]]
-.Default workflow that the {prodname} SQL Server connector uses to perform an initial snapshot
+// Type: concept
+// ModuleID: default-workflow-that-the-sqlserver-connector-uses-to-perform-an-initial-snapshot
+[[sqlserver-default-workflow-for-performing-an-initial-snapshot]]
+==== Default workflow that the {prodname} SQL Server connector uses to perform an initial snapshot
 
 The following workflow lists the steps that {prodname} takes to create a snapshot.
 These steps describe the process for a snapshot when the xref:{context}-property-snapshot-mode[`snapshot.mode`] configuration property is set to its default value, which is `initial`.
@@ -201,7 +203,7 @@ If the connector stops again for any reason, after it restarts, it resumes strea
 After the snapshot completes, the connector begins to stream event records for subsequent database changes.
 
 |`initial`
-|The connector performs a database snapshot as described in the xref:default-workflow-for-performing-an-initial-snapshot[default workflow for creating an initial snapshot].
+|The connector performs a database snapshot as described in the xref:sqlserver-default-workflow-for-performing-an-initial-snapshot[default workflow for creating an initial snapshot].
 After the snapshot completes, the connector begins to stream event records for subsequent database changes.
 
 |`initial_only`
@@ -211,7 +213,7 @@ After the snapshot completes, the connector begins to stream event records for s
 |Deprecated, see `no_data`.
 
 |`no_data`
-|The connector captures the structure of all relevant tables, performing all the steps described in the xref:default-workflow-for-performing-an-initial-snapshot[default snapshot workflow], except that it does not create `READ` events to represent the data set at the point of the connector's start-up (Step 7.b).
+|The connector captures the structure of all relevant tables, performing all the steps described in the xref:sqlserver-default-workflow-for-performing-an-initial-snapshot[default snapshot workflow], except that it does not create `READ` events to represent the data set at the point of the connector's start-up (Step 7.b).
 
 |`recovery`
 |Set this option to restore a database schema history topic that is lost or corrupted.
@@ -1933,7 +1935,7 @@ For details about setting up SQL Server for use with the {prodname} connector, s
 
 endif::product[]
 
-After CDC is applied, it captures all of the `INSERT`, `UPDATE`, and `DELETE` operations that are committed to the tables for which CDD is enabled.
+After CDC is applied, it captures all of the `INSERT`, `UPDATE`, and `DELETE` operations that are committed to the tables for which CDC is enabled.
 The {prodname} connector can then capture these events and emit them to Kafka topics.
 
 // Type: procedure
@@ -2348,13 +2350,12 @@ spec:
     database.port: 1433 // <4>
     database.user: debezium // <5>
     database.password: dbz // <6>
-    database.names: testDB1,testDB2 // <7>
-    topic.prefix: inventory-connector-{context} // <8>
-    table.include.list: dbo.customers // <9>
-    schema.history.internal.kafka.bootstrap.servers: my-cluster-kafka-bootstrap:9092 // <10>
-    schema.history.internal.kafka.topic: schemahistory.fullfillment // <11>
-    database.ssl.truststore: path/to/trust-store // <12>
-    database.ssl.truststore.password: password-for-trust-store <13>
+    topic.prefix: inventory-connector-{context} // <7>
+    table.include.list: dbo.customers // <8>
+    schema.history.internal.kafka.bootstrap.servers: my-cluster-kafka-bootstrap:9092 // <9>
+    schema.history.internal.kafka.topic: schemahistory.fullfillment // <10>
+    database.ssl.truststore: path/to/trust-store // <11>
+    database.ssl.truststore.password: password-for-trust-store <12>
 ----
 +
 .Descriptions of connector configuration settings
@@ -2381,25 +2382,22 @@ spec:
 |The password for the SQL Server user.
 
 |7
-|The name of the database to capture changes from.
-
-|8
 |The topic prefix for the SQL Server instance/cluster, which forms a namespace and is used in all the names of the Kafka topics to which the connector writes, the Kafka Connect schema names, and the namespaces of the corresponding Avro schema when the {link-prefix}:{link-avro-serialization}#avro-serialization[Avro converter] is used.
 
-|9
+|8
 |The connector captures changes from the `dbo.customers` table only.
 
-|10
+|9
 |The list of Kafka brokers that this connector will use to write and recover DDL statements to the database schema history topic.
 
-|11
+|10
 |The name of the database schema history topic where the connector will write and recover DDL statements. This topic is for internal use only and should not be used by consumers.
 
-|12
+|11
 |The path to the SSL truststore that stores the server's signer certificates.
 This property is required unless database encryption is disabled (`database.encrypt=false`).
 
-|13
+|12
 |The SSL truststore password.
 This property is required unless database encryption is disabled (`database.encrypt=false`).
 
@@ -2825,6 +2823,7 @@ For more information, see {link-prefix}:{link-avro-serialization}#avro-naming[Av
 
 |===
 
+// Title: Advanced {prodname} SQL Server connector configuration properties
 [id="sqlserver-advanced-connector-configuration-properties"]
 ==== Advanced SQL Server connector configuration properties
 
@@ -2869,14 +2868,14 @@ The following values are supported:
 `always`:: Perform snapshot on each connector start.
 After the snapshot completes, the connector begins to stream event records for subsequent database changes.
 
-`initial`:: The connector performs a database snapshot as described in the xref:default-workflow-for-performing-an-initial-snapshot[default workflow for creating an initial snapshot].
+`initial`:: The connector performs a database snapshot as described in the xref:sqlserver-default-workflow-for-performing-an-initial-snapshot[default workflow for creating an initial snapshot].
 After the snapshot completes, the connector begins to stream event records for subsequent database changes.
 
 `initial_only`:: The connector performs a database snapshot and stops before streaming any change event records, not allowing any subsequent change events to be captured.
 
 `schema_only`:: Deprecated, see `no_data`.
 
-`no_data`:: The connector captures the structure of all relevant tables, performing all the steps described in the xref:default-workflow-for-performing-an-initial-snapshot[default snapshot workflow], except that it does not create `READ` events to represent the data set at the point of the connector's start-up (Step 7.b).
+`no_data`:: The connector captures the structure of all relevant tables, performing all the steps described in the xref:sqlserver-default-workflow-for-performing-an-initial-snapshot[default snapshot workflow], except that it does not create `READ` events to represent the data set at the point of the connector's start-up (Step 7.b).
 
 `recovery`:: Set this option to restore a database schema history topic that is lost or corrupted.
 After a restart, the connector runs a snapshot that rebuilds the topic from the source tables.
@@ -3062,10 +3061,26 @@ This may result in more change events to be re-sent after a connector restart.
 Set this parameter to `0` to not send heartbeat messages at all. +
 Disabled by default.
 
+|[[sqlserver-property-heartbeat-action-query]]<<sqlserver-property-heartbeat-action-query, `+heartbeat.action.query+`>>
+|No default
+|Specifies a query that the connector executes on the source database when the connector sends a heartbeat message. +
++
+This is useful for keeping offsets from becoming stale when capturing changes from a low-traffic database. Create a heartbeat table in the low-traffic database, and set this property to a statement that inserts records into that table, for example:  +
++
+`INSERT INTO test_heartbeat_table (text) VALUES ('test_heartbeat')` +
++
+This allows the connector to receive changes from the low-traffic database and acknowledge their LSNs, which prevents offsets from become stale.
+
 |[[sqlserver-property-snapshot-delay-ms]]<<sqlserver-property-snapshot-delay-ms, `+snapshot.delay.ms+`>>
 |No default
 |An interval in milli-seconds that the connector should wait before taking a snapshot after starting up; +
 Can be used to avoid snapshot interruptions when starting multiple connectors in a cluster, which may cause re-balancing of connectors.
+
+|[[sqlserver-property-streaming-delay-ms]]<<sqlserver-property-streaming-delay-ms, `+streaming.delay.ms+`>>
+|0
+|Specifies the time, in milliseconds, that the connector delays the start of the streaming process after it completes a snapshot.
+Setting a delay interval helps to prevent the connector from restarting snapshots in the event that a failure occurs immediately after the snapshot completes, but before the streaming process begins.
+Set a delay value that is higher than the value of the {link-kafka-docs}/#connectconfigs_offset.flush.interval.ms[`offset.flush.interval.ms`] property that is set for the Kafka Connect worker.
 
 |[[sqlserver-property-snapshot-fetch-size]]<<sqlserver-property-snapshot-fetch-size, `+snapshot.fetch.size+`>>
 |`2000`
@@ -3191,10 +3206,10 @@ No entry is created for the signal to close the snapshot window.
 Set this option to prevent rapid growth of the signaling data collection.
 
 |[[sqlserver-property-max-iteration-transactions]]<<sqlserver-property-max-iteration-transactions, `+max.iteration.transactions+`>>
-|0
+|500
 |Specifies the maximum number of transactions per iteration to be used to reduce the memory footprint when streaming changes from multiple tables in a database.
-When set to `0` (the default), the connector uses the current maximum LSN as the range to fetch changes from.
-When set to a value greater than zero, the connector uses the n-th LSN specified by this setting as the range to fetch changes from.
+When set to `0`, the connector uses the current maximum LSN as the range to fetch changes from.
+When set to a value greater than zero, the connector uses the n-th LSN specified by this setting as the range to fetch changes from. Defaults to 500.
 
 |[[sqlserver-property-incremental-snapshot-option-recompile]]<<sqlserver-property-incremental-snapshot-option-recompile, `+incremental.snapshot.option.recompile+`>>
 |`false`
@@ -3251,7 +3266,15 @@ endif::product[]
 
 |[[sqlserver-property-custom-metric-tags]]<<sqlserver-property-custom-metric-tags, `custom.metric.tags`>>
 |`No default`
-|The custom metric tags will accept key-value pairs to customize the MBean object name which should be appended the end of regular name, each key would represent a tag for the MBean object name, and the corresponding value would be the value of that tag the key is. For example: `k1=v1,k2=v2`.
+|Defines tags that customize MBean object names by adding metadata that provides contextual information.
+Specify a comma-separated list of key-value pairs.
+Each key represents a tag for the MBean object name, and the corresponding value represents a value for the key, for example,  +
+`k1=v1,k2=v2`
+
+The connector appends the specified tags to the base MBean object name.
+Tags can help you to organize and categorize metrics data.
+You can define tags to identify particular application instances, environments, regions, versions, and so forth.
+For more information, see xref:customized-mbean-names[Customized MBean names].
 
 |[[sqlserver-property-errors-max-retires]]<<sqlserver-property-errors-max-retires, `errors.max.retries`>>
 |`-1`
@@ -3273,6 +3296,10 @@ After the next failure, the connector stops, and user intervention is required t
 * `function`: The data is queried by calling `cdc.[fn_cdc_get_all_changes_#]` function. This is the default mode.
 * `direct`: Makes the connector to query change tables directly. Switching to `direct` mode and creating an index on `(\\__$start_lsn ASC, __$seqval ASC, __$operation ASC)` columns for each change table significantly speeds up querying CDC data.
 
+|[[sqlserver-property-database-query-timeout-ms]]<<sqlserver-property-database-query-timeout-ms, `database.query.timeout.ms`>>
+|`600000` (10 minutes)
+|Specifies the time, in milliseconds, that the connector waits for a query to complete.
+Set the value to `0` (zero) to remove the timeout limit.
 |===
 
 [id="debezium-sqlserver-connector-database-history-configuration-properties"]
@@ -3487,6 +3514,14 @@ The connector provides the following metrics:
 * xref:sqlserver-schema-history-metrics[Schema history metrics] for monitoring the status of the connector's schema history.
 
 For information about how to expose the preceding metrics through JMX, see the {link-prefix}:{link-debezium-monitoring}#monitoring-debezium[{prodname} monitoring documentation].
+
+// Type: concept
+// ModuleID: monitoring-debezium-sqlserver-connectors-customized-mbean-names
+// Title: Customized names for SQL Server connector snapshot and streaming MBean objects
+[id="customized-mbean-names"]
+=== Customized MBean names
+
+include::{partialsdir}/modules/all-connectors/frag-common-mbean-name.adoc[leveloffset=+1,tags=mbeans-shared]
 
 // Type: reference
 // ModuleID: debezium-sqlserver-connector-snapshot-metrics

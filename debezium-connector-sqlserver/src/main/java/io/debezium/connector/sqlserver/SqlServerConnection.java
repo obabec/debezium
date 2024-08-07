@@ -45,6 +45,7 @@ import io.debezium.data.Envelope;
 import io.debezium.jdbc.JdbcConfiguration;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.spi.OffsetContext;
+import io.debezium.pipeline.spi.Partition;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -65,6 +66,7 @@ public class SqlServerConnection extends JdbcConnection {
 
     private static final String STATEMENTS_PLACEHOLDER = "#";
     private static final String DATABASE_NAME_PLACEHOLDER = "#db";
+    private static final String TABLE_NAME_PLACEHOLDER = "#table";
     private static final String GET_MAX_LSN = "SELECT [#db].sys.fn_cdc_get_max_lsn()";
     private static final String GET_MAX_TRANSACTION_LSN = "SELECT MAX(start_lsn) FROM [#db].cdc.lsn_time_mapping WHERE tran_id <> 0x00";
     private static final String GET_NTH_TRANSACTION_LSN_FROM_BEGINNING = "SELECT MAX(start_lsn) FROM (SELECT TOP (?) start_lsn FROM [#db].cdc.lsn_time_mapping WHERE tran_id <> 0x00 ORDER BY start_lsn) as next_lsns";
@@ -76,8 +78,8 @@ public class SqlServerConnection extends JdbcConnection {
     protected static final String LSN_TIMESTAMP_SELECT_STATEMENT = "TODATETIMEOFFSET([#db].sys.fn_cdc_map_lsn_to_time([__$start_lsn]), DATEPART(TZOFFSET, SYSDATETIMEOFFSET()))";
     private static final String GET_ALL_CHANGES_FOR_TABLE_SELECT = "SELECT [__$start_lsn], [__$seqval], [__$operation], [__$update_mask], #, "
             + LSN_TIMESTAMP_SELECT_STATEMENT;
-    private static final String GET_ALL_CHANGES_FOR_TABLE_FROM_FUNCTION = "FROM [#db].cdc.[fn_cdc_get_all_changes_#](?, ?, N'all update old')";
-    private static final String GET_ALL_CHANGES_FOR_TABLE_FROM_DIRECT = "FROM [#db].cdc.[#]";
+    private static final String GET_ALL_CHANGES_FOR_TABLE_FROM_FUNCTION = "FROM [#db].cdc.[fn_cdc_get_all_changes_#table](?, ?, N'all update old')";
+    private static final String GET_ALL_CHANGES_FOR_TABLE_FROM_DIRECT = "FROM [#db].cdc.[#table]";
     private static final String GET_ALL_CHANGES_FOR_TABLE_ORDER_BY = "ORDER BY [__$start_lsn] ASC, [__$seqval] ASC, [__$operation] ASC";
 
     /**
@@ -109,6 +111,7 @@ public class SqlServerConnection extends JdbcConnection {
             " FROM ordered_change_tables WHERE ct_sequence = 1";
 
     private static final String GET_NEW_CHANGE_TABLES = "SELECT * FROM [#db].cdc.change_tables WHERE start_lsn BETWEEN ? AND ?";
+    private static final String GET_MIN_LSN_FROM_ALL_CHANGE_TABLES = "select min(start_lsn) from [#db].cdc.change_tables";
     private static final String OPENING_QUOTING_CHARACTER = "[";
     private static final String CLOSING_QUOTING_CHARACTER = "]";
 
@@ -364,7 +367,7 @@ public class SqlServerConnection extends JdbcConnection {
             }
             final String query = replaceDatabaseNamePlaceholder(getAllChangesForTable, databaseName)
                     .replaceFirst(STATEMENTS_PLACEHOLDER, Matcher.quoteReplacement(capturedColumns))
-                    .replace(STATEMENTS_PLACEHOLDER, source);
+                    .replace(TABLE_NAME_PLACEHOLDER, source);
             queries[idx] = query;
             // If the table was added in the middle of queried buffer we need
             // to adjust from to the first LSN available
@@ -735,13 +738,14 @@ public class SqlServerConnection extends JdbcConnection {
                 rs -> rs.next() ? Optional.of(rs.getObject(1, OffsetDateTime.class).toInstant()) : Optional.empty());
     }
 
-    public boolean validateLogPosition(OffsetContext offset, CommonConnectorConfig config) {
+    public boolean validateLogPosition(Partition partition, OffsetContext offset, CommonConnectorConfig config) {
 
         final Lsn storedLsn = ((SqlServerOffsetContext) offset).getChangePosition().getCommitLsn();
 
-        String oldestFirstChangeQuery = "SELECT TOP 1 [Current LSN] FROM sys.fn_dblog (NULL, NULL) ORDER BY [Current LSN] ASC";
+        final String oldestFirstChangeQuery = replaceDatabaseNamePlaceholder(GET_MIN_LSN_FROM_ALL_CHANGE_TABLES, ((SqlServerPartition) partition).getDatabaseName());
 
         try {
+
             final String oldestScn = singleOptionalValue(oldestFirstChangeQuery, rs -> rs.getString(1));
 
             if (oldestScn == null) {

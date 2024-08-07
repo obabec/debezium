@@ -74,8 +74,8 @@ import io.debezium.engine.DebeziumEngine;
 import io.debezium.function.BooleanConsumer;
 import io.debezium.junit.SkipTestRule;
 import io.debezium.junit.TestLogger;
-import io.debezium.pipeline.txmetadata.TransactionMonitor;
 import io.debezium.pipeline.txmetadata.TransactionStatus;
+import io.debezium.pipeline.txmetadata.TransactionStructMaker;
 import io.debezium.relational.history.HistoryRecord;
 import io.debezium.util.LoggingContext;
 import io.debezium.util.Testing;
@@ -753,8 +753,8 @@ public abstract class AbstractConnectorTest implements Testing {
                 nullReturn = 0;
                 final Struct value = (Struct) record.value();
                 if (isTransactionRecord(record)) {
-                    final String status = value.getString(TransactionMonitor.DEBEZIUM_TRANSACTION_STATUS_KEY);
-                    final String txId = value.getString(TransactionMonitor.DEBEZIUM_TRANSACTION_ID_KEY);
+                    final String status = value.getString(TransactionStructMaker.DEBEZIUM_TRANSACTION_STATUS_KEY);
+                    final String txId = value.getString(TransactionStructMaker.DEBEZIUM_TRANSACTION_ID_KEY);
                     String id = Arrays.stream(txId.split(":")).findFirst().get();
                     if (status.equals(TransactionStatus.BEGIN.name())) {
                         endTransactions.add(id);
@@ -798,12 +798,12 @@ public abstract class AbstractConnectorTest implements Testing {
                 nullReturn = 0;
                 final Struct value = (Struct) record.value();
                 if (isTransactionRecord(record)) {
-                    final String status = value.getString(TransactionMonitor.DEBEZIUM_TRANSACTION_STATUS_KEY);
+                    final String status = value.getString(TransactionStructMaker.DEBEZIUM_TRANSACTION_STATUS_KEY);
                     if (status.equals(TransactionStatus.END.name())) {
-                        endTransactions.remove(value.getString(TransactionMonitor.DEBEZIUM_TRANSACTION_ID_KEY));
+                        endTransactions.remove(value.getString(TransactionStructMaker.DEBEZIUM_TRANSACTION_ID_KEY));
                     }
                     else {
-                        endTransactions.add(value.getString(TransactionMonitor.DEBEZIUM_TRANSACTION_ID_KEY));
+                        endTransactions.add(value.getString(TransactionStructMaker.DEBEZIUM_TRANSACTION_ID_KEY));
                     }
                 }
                 else {
@@ -951,15 +951,28 @@ public abstract class AbstractConnectorTest implements Testing {
      * @return {@code true} if records are available, or {@code false} if the timeout occurred and no records are available
      */
     protected boolean waitForAvailableRecords(long timeout, TimeUnit unit) {
-        assertThat(timeout).isGreaterThanOrEqualTo(0);
-        long now = System.currentTimeMillis();
-        long stop = now + unit.toMillis(timeout);
-        while (System.currentTimeMillis() < stop) {
-            if (!consumedLines.isEmpty()) {
-                break;
-            }
+        assertThat(timeout).isNotNegative();
+        assertThat(unit).isNotNull();
+        try {
+            Awaitility.await()
+                    .alias("Records were not available on time")
+                    .pollInterval(timeout < 10
+                            ? unit.toChronoUnit().getDuration().dividedBy(10)
+                            : unit.toChronoUnit().getDuration())
+                    .atMost(timeout, unit)
+                    .until(() -> !consumedLines.isEmpty());
+        }
+        catch (ConditionTimeoutException ignore) {
+            // IGNORE
         }
         return !consumedLines.isEmpty();
+    }
+
+    /**
+     * Wait for a maximum amount of time until the first record is available.
+     */
+    protected boolean waitForAvailableRecords() {
+        return waitForAvailableRecords(waitTimeForRecords() * 30L, TimeUnit.SECONDS);
     }
 
     /**

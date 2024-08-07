@@ -152,6 +152,16 @@ public final class MongoDbConnection implements AutoCloseable {
      * @return the collection identifiers; never null
      */
     public List<CollectionId> collections() throws InterruptedException {
+        if (connectorConfig.getCaptureScope() == MongoDbConnectorConfig.CaptureScope.COLLECTION) {
+            return connectorConfig.getCaptureTarget()
+                    .map(String::valueOf)
+                    .map(captureTarget -> captureTarget.split("\\."))
+                    .map(parts -> new CollectionId(parts[0], parts[1]))
+                    .filter(collectionId -> filters.collectionFilter().test(collectionId))
+                    .map(List::of)
+                    .orElse(List.of());
+        }
+
         return execute("get collections in databases", client -> {
             List<CollectionId> collections = new ArrayList<>();
             Set<String> databaseNames = databaseNames();
@@ -208,11 +218,11 @@ public final class MongoDbConnection implements AutoCloseable {
 
                 try (var ignored = stream.cursor()) {
                     LOGGER.info("Valid resume token present, so no snapshot will be performed'");
-                    return false;
+                    return true;
                 }
                 catch (MongoCommandException | MongoChangeStreamException e) {
                     LOGGER.info("Invalid resume token present, snapshot will be performed'");
-                    return true;
+                    return false;
                 }
             });
         }

@@ -15,7 +15,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -78,6 +77,7 @@ import io.debezium.connector.postgresql.connection.PostgresReplicationConnection
 import io.debezium.connector.postgresql.connection.ReplicaIdentityInfo;
 import io.debezium.connector.postgresql.connection.ReplicationConnection;
 import io.debezium.connector.postgresql.connection.pgoutput.PgOutputMessageDecoder;
+import io.debezium.connector.postgresql.junit.PostgresDatabaseVersionResolver;
 import io.debezium.connector.postgresql.junit.SkipTestDependingOnDecoderPluginNameRule;
 import io.debezium.connector.postgresql.junit.SkipWhenDecoderPluginNameIs;
 import io.debezium.connector.postgresql.junit.SkipWhenDecoderPluginNameIsNot;
@@ -86,7 +86,7 @@ import io.debezium.converters.CloudEventsConverterTest;
 import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
-import io.debezium.embedded.AbstractConnectorTest;
+import io.debezium.embedded.async.AbstractAsyncEngineConnectorTest;
 import io.debezium.engine.DebeziumEngine;
 import io.debezium.heartbeat.Heartbeat;
 import io.debezium.jdbc.JdbcConfiguration;
@@ -108,7 +108,7 @@ import io.debezium.util.Strings;
  *
  * @author Horia Chiorean (hchiorea@redhat.com)
  */
-public class PostgresConnectorIT extends AbstractConnectorTest {
+public class PostgresConnectorIT extends AbstractAsyncEngineConnectorTest {
 
     /*
      * Specific tests that need to extend the initial DDL set should do it in a form of
@@ -3418,7 +3418,8 @@ public class PostgresConnectorIT extends AbstractConnectorTest {
                 .atMost(waitTimeForRecords() * 30L, TimeUnit.SECONDS)
                 .until(() -> finished.get());
         assertThat(status.get()).isFalse();
-        assertNull(error.get());
+        assertNotNull(error.get());
+        assertThat(error.get()).isInstanceOf(DebeziumException.class);
         assertThat(message.get()).contains("snapshot.mode.custom.name cannot be empty when snapshot.mode 'custom' is defined");
     }
 
@@ -3518,6 +3519,26 @@ public class PostgresConnectorIT extends AbstractConnectorTest {
             assertEquals("io.debezium.connector.postgresql.Source", source.schema().name());
             assertNotNull(source.getInt64(SourceInfo.LSN_KEY));
         });
+    }
+
+    @Test
+    public void shouldFailWhenReadOnlyIsNotSupported() {
+
+        PostgresDatabaseVersionResolver databaseVersionResolver = new PostgresDatabaseVersionResolver();
+
+        start(PostgresConnector.class, TestHelper.defaultConfig()
+                .with(PostgresConnectorConfig.READ_ONLY_CONNECTION, true)
+                .build(), (success, message, error) -> {
+
+                    if (databaseVersionResolver.getVersion().isLessThan(13, 0, 0)) {
+                        assertThat(error)
+                                .isInstanceOf(DebeziumException.class)
+                                .hasMessage("Read only is not supported for version minor to 13");
+                    }
+                    else {
+                        assertTrue(success);
+                    }
+                });
     }
 
     private Predicate<SourceRecord> stopOnPKPredicate(int pkValue) {

@@ -10,6 +10,9 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.postgresql.data.Ltree;
+import io.debezium.connector.postgresql.data.vector.HalfVector;
+import io.debezium.connector.postgresql.data.vector.SparseVector;
+import io.debezium.connector.postgresql.data.vector.Vector;
 import io.debezium.data.Envelope;
 import io.debezium.schema.SchemaFactory;
 import io.debezium.schema.SchemaNameAdjuster;
@@ -29,14 +32,14 @@ public class PostgresSchemaFactory extends SchemaFactory {
     /*
      * Postgres LogicalDecodingMessageMonitor schema
      */
+    public static final String POSTGRES_LOGICAL_DECODING_MESSAGE_MONITOR_VALUE_SCHEMA_NAME = "io.debezium.connector.postgresql.MessageValue";
+    private static final int POSTGRES_LOGICAL_DECODING_MESSAGE_MONITOR_VALUE_SCHEMA_VERSION = 1;
+
     private static final String POSTGRES_LOGICAL_DECODING_MESSAGE_MONITOR_KEY_SCHEMA_NAME = "io.debezium.connector.postgresql.MessageKey";
     private static final int POSTGRES_LOGICAL_DECODING_MESSAGE_MONITOR_KEY_SCHEMA_VERSION = 1;
 
     private static final String POSTGRES_LOGICAL_DECODING_MESSAGE_MONITOR_BLOCK_SCHEMA_NAME = "io.debezium.connector.postgresql.Message";
     private static final int POSTGRES_LOGICAL_DECODING_MESSAGE_MONITOR_BLOCK_SCHEMA_VERSION = 1;
-
-    private static final String POSTGRES_LOGICAL_DECODING_MESSAGE_MONITOR_VALUE_SCHEMA_NAME = "io.debezium.connector.postgresql.MessageValue";
-    private static final int POSTGRES_LOGICAL_DECODING_MESSAGE_MONITOR_VALUE_SCHEMA_VERSION = 1;
 
     public Schema logicalDecodingMessageMonitorKeySchema(SchemaNameAdjuster adjuster) {
         return SchemaBuilder.struct()
@@ -71,5 +74,27 @@ public class PostgresSchemaFactory extends SchemaFactory {
         return SchemaBuilder.string()
                 .name(Ltree.LOGICAL_NAME)
                 .version(Ltree.SCHEMA_VERSION);
+    }
+
+    public SchemaBuilder datatypeVectorSchema() {
+        return SchemaBuilder.array(Schema.FLOAT64_SCHEMA)
+                .name(Vector.LOGICAL_NAME)
+                .version(Vector.SCHEMA_VERSION);
+    }
+
+    public SchemaBuilder datatypeHalfVectorSchema() {
+        return SchemaBuilder.array(Schema.FLOAT32_SCHEMA)
+                .name(HalfVector.LOGICAL_NAME)
+                .version(HalfVector.SCHEMA_VERSION);
+    }
+
+    public SchemaBuilder datatypeSparseVectorSchema() {
+        return SchemaBuilder.struct()
+                .name(SparseVector.LOGICAL_NAME)
+                .name(SparseVector.LOGICAL_NAME)
+                .version(SparseVector.SCHEMA_VERSION)
+                .doc("Sparse vector")
+                .field(SparseVector.DIMENSIONS_FIELD, Schema.INT16_SCHEMA)
+                .field(SparseVector.VECTOR_FIELD, SchemaBuilder.map(Schema.INT16_SCHEMA, Schema.FLOAT64_SCHEMA).build());
     }
 }

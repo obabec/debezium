@@ -153,14 +153,14 @@ public class OracleConnectorConfig extends HistorizedRelationalDatabaseConnector
 
     public static final Field LOG_MINING_STRATEGY = Field.create("log.mining.strategy")
             .withDisplayName("Log Mining Strategy")
-            .withEnum(LogMiningStrategy.class, LogMiningStrategy.CATALOG_IN_REDO)
+            .withEnum(LogMiningStrategy.class, LogMiningStrategy.ONLINE_CATALOG)
             .withWidth(Width.MEDIUM)
             .withImportance(Importance.HIGH)
             .withGroup(Field.createGroupEntry(Field.Group.CONNECTION_ADVANCED, 8))
             .withValidation(OracleConnectorConfig::validateLogMiningStrategy)
             .withDescription("There are strategies: Online catalog with faster mining but no captured DDL. Another - with data dictionary loaded into REDO LOG files");
 
-    public static final Field SNAPSHOT_ENHANCEMENT_TOKEN = Field.create("snapshot.enhance.predicate.scn")
+    public static final Field SNAPSHOT_ENHANCEMENT_TOKEN = Field.createInternal("snapshot.enhance.predicate.scn")
             .withDisplayName("A string to replace on snapshot predicate enhancement")
             .withType(Type.STRING)
             .withWidth(Width.MEDIUM)
@@ -645,6 +645,7 @@ public class OracleConnectorConfig extends HistorizedRelationalDatabaseConnector
                     USER,
                     PASSWORD,
                     DATABASE_NAME,
+                    QUERY_TIMEOUT_MS,
                     PDB_NAME,
                     XSTREAM_SERVER_NAME,
                     SNAPSHOT_MODE,

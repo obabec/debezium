@@ -25,6 +25,7 @@ jobs:
     outputs:
       common-changed: ${{ steps.changed-files-common.outputs.any_changed }}
       mongodb-changed: ${{ steps.changed-files-mongodb.outputs.any_changed }}
+      mariadb-changed: ${{ steps.changed-files-mariadb.outputs.any_changed }}
       mysql-changed: ${{ steps.changed-files-mysql.outputs.any_changed }}
       postgresql-changed: ${{ steps.changed-files-postgresql.outputs.any_changed }}
       oracle-changed: ${{ steps.changed-files-oracle.outputs.any_changed }}
@@ -46,7 +47,7 @@ jobs:
 
       - name: Get modified files (Common)
         id: changed-files-common
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             support/checkstyle/**
@@ -68,42 +69,50 @@ jobs:
 
       - name: Get modified files (MongoDB)
         id: changed-files-mongodb
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-connector-mongodb/**
 
       - name: Get modified files (MySQL)
         id: changed-files-mysql
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-connector-mysql/**
 
+      - name: Get modified files (MariaDB)
+        id: changed-files-mariadb
+        uses: tj-actions/changed-files@v44.5.7
+        with:
+          files: |
+            debezium-connector-mariadb/**
+            debezium-connector-binlog/**
+
       - name: Get modified files (PostgreSQL)
         id: changed-files-postgresql
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-connector-postgres/**
 
       - name: Get modified files (Oracle)
         id: changed-files-oracle
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-connector-oracle/**
 
       - name: Get modified files (SQL Server)
         id: changed-files-sqlserver
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-connector-sqlserver/**
 
       - name: Get modified files (Quarkus Outbox)
         id: changed-files-outbox
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-quarkus-outbox/**
@@ -112,35 +121,35 @@ jobs:
 
       - name: Get modified files (REST Extension)
         id: changed-files-rest-extension
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-connect-rest-extension/**
 
       - name: Get modified files (Schema Generator)
         id: changed-files-schema-generator
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-schema-generator/**
 
       - name: Get modified files (Debezium Testing)
         id: changed-files-debezium-testing
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-testing/**
 
       - name: Get modified files (Debezium Testing MongoDB)
         id: changed-files-debezium-testing-mongodb
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-testing/**/MongoDb*.java
 
       - name: Get modified files (MySQL DDL parser)
         id: changed-files-mysql-ddl-parser
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-ddl-parser/src/main/antlr4/io/debezium/ddl/parser/mysql/**
@@ -149,7 +158,7 @@ jobs:
 
       - name: Get modified files (Oracle DDL parser)
         id: changed-files-oracle-ddl-parser
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-ddl-parser/src/main/antlr4/io/debezium/ddl/parser/oracle/**
@@ -159,14 +168,14 @@ jobs:
 
       - name: Get modified files (Documentation)
         id: changed-files-documentation
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             documentation/**
 
       - name: Get modified files (Storage)
         id: changed-files-storage
-        uses: tj-actions/changed-files@v43.0.1
+        uses: tj-actions/changed-files@v44.5.7
         with:
           files: |
             debezium-storage/**
@@ -227,6 +236,13 @@ jobs:
 
       - name: Download dependencies (Debezium Server)
         if: steps.maven-cache-check.outputs.cache-hit != 'true'
+        # There are some corner cases where dependencies change and core no longer defines the
+        # dependency; however Debezium Server due to checking out main, may still refer to it.
+        # In this case, if the artifact fetch fails, we shouldn't fail the job.  Fixing the
+        # dependency in the Debezium Server repository with the same Jira issue tag as the
+        # main repository's PR will run the build based on the PR changes in main, and will
+        # allow validating the Debezium Server build separately.
+        continue-on-error: true
         run: >
           ./server/mvnw -B -ntp clean install -f server/pom.xml
           -Dformat.skip=true
@@ -295,12 +311,12 @@ jobs:
     strategy:
       # Runs each combination concurrently
       matrix:
-        profile: [ 'mysql-ci', 'mysql-ci-gtids' ]
+        profile: [ 'mariadb-ci', 'mariadb-ci-gtids' ]
       fail-fast: false
     name: "MariaDB - ${{ matrix.profile }}"
     needs: [ check_style, file_changes ]
     runs-on: ubuntu-latest
-    if: ${{ needs.file_changes.outputs.common-changed == 'true' || needs.file_changes.outputs.mysql-changed == 'true' || needs.file_changes.outputs.mysql-ddl-parser-changed == 'true' || needs.file_changes.outputs.schema-generator-changed == 'true' }}
+    if: ${{ needs.file_changes.outputs.common-changed == 'true' || needs.file_changes.outputs.mariadb-changed == 'true' || needs.file_changes.outputs.mysql-ddl-parser-changed == 'true' || needs.file_changes.outputs.schema-generator-changed == 'true' }}
     steps:
       - name: Checkout Action
         uses: actions/checkout@v4
@@ -315,7 +331,7 @@ jobs:
     strategy:
       # Runs each combination concurrently
       matrix:
-        profile: [ "assembly", "assembly,postgres-16,pgoutput-decoder" ]
+        profile: [ "assembly,postgres-12", "assembly,postgres-16,pgoutput-decoder" ]
       fail-fast: false
     name: "PostgreSQL - ${{ matrix.profile }}"
     needs: [ check_style, file_changes ]
@@ -612,30 +628,14 @@ jobs:
     name: "JDBC"
     needs: [ check_style, file_changes ]
     runs-on: ubuntu-latest
-    if: ${{ needs.file_changes.outputs.common-changed == 'true' }}
+    if: ${{ needs.file_changes.outputs.common-changed == 'true' || needs.file_changes.outputs.mysql-changed == 'true' || needs.file_changes.outputs.mysql-ddl-parser-changed == 'true' || needs.file_changes.outputs.mariadb-changed == 'true' || needs.file_changes.outputs.postgresql-changed == 'true' || needs.file_changes.outputs.sqlserver-changed == 'true' || needs.file_changes.outputs.sqlserver-changed == 'true' || needs.file_changes.outputs.db2-changed == 'true' }}
     steps:
-      - name: Checkout Action (Debezium Core)
+      - name: Checkout Action
         uses: actions/checkout@v4
-        with:
-          path: core
 
-      - name: Checkout Action (JDBC)
-        uses: actions/checkout@v4
+      - uses: ./.github/actions/build-debezium-jdbc
         with:
-          repository: debezium/debezium-connector-jdbc
-          path: jdbc
-
-      - uses: ./core/.github/actions/setup-java
-
-      - uses: ./core/.github/actions/maven-cache
-        with:
-          # We specifically only use the hash of the pom files from the core repository
-          key: maven-debezium-test-build-${{ hashFiles('core/**/pom.xml') }}
-
-      - uses: ./core/.github/actions/build-debezium-jdbc
-        with:
-          path-core: core
-          path-jdbc: jdbc
+          maven-cache-key: maven-debezium-test-build-${{ hashFiles('**/pom.xml') }}
 
   build_debezium_server:
     name: "Debezium Server"

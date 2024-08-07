@@ -48,6 +48,7 @@ import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.source.snapshot.incremental.ChunkQueryBuilder;
 import io.debezium.pipeline.source.snapshot.incremental.RowValueConstructorChunkQueryBuilder;
 import io.debezium.pipeline.spi.OffsetContext;
+import io.debezium.pipeline.spi.Partition;
 import io.debezium.relational.Column;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
@@ -560,7 +561,10 @@ public class PostgresConnection extends JdbcConnection {
         ServerInfo serverInfo = new ServerInfo();
         query("SELECT version(), current_user, current_database()", rs -> {
             if (rs.next()) {
-                serverInfo.withServer(rs.getString(1)).withUsername(rs.getString(2)).withDatabase(rs.getString(3));
+                serverInfo
+                        .withServer(rs.getString(1))
+                        .withUsername(rs.getString(2))
+                        .withDatabase(rs.getString(3));
             }
         });
         String username = serverInfo.username();
@@ -577,6 +581,9 @@ public class PostgresConnection extends JdbcConnection {
                         }
                     });
         }
+
+        serverInfo.withMajorVersion(connection().getMetaData().getDatabaseMajorVersion());
+
         return serverInfo;
     }
 
@@ -826,7 +833,7 @@ public class PostgresConnection extends JdbcConnection {
         return new TableId(null, schemaName, tableName);
     }
 
-    public boolean validateLogPosition(OffsetContext offset, CommonConnectorConfig config) {
+    public boolean validateLogPosition(Partition partition, OffsetContext offset, CommonConnectorConfig config) {
 
         final Lsn storedLsn = ((PostgresOffsetContext) offset).lastCommitLsn();
         final String slotName = ((PostgresConnectorConfig) config).slotName();

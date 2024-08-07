@@ -207,7 +207,12 @@ The source configuration uses the same configuration properties that are describ
 |[[debezium-source-offset-storage]]<<debezium-source-offset-storage, `debezium.source.offset.storage`>>
 |`org.apache.kafka.connect.storage.FileOffsetBackingStore`
 |Class to use for storing and retrieving offsets for non-Kafka deployments.
-To use Redis to store offsets, use `io.debezium.storage.redis.offset.RedisOffsetBackingStore`
+Available options
+
+* `org.apache.kafka.connect.storage.FileOffsetBackingStore` for non-Kafka deployments  
+* `org.apache.kafka.connect.storage.MemoryOffsetBackingStore` volatile store for test environments
+* `io.debezium.storage.jdbc.offset.JdbcOffsetBackingStore` for database using JDBC
+* `io.debezium.storage.redis.offset.RedisOffsetBackingStore` for Redis deployments
 
 |[[debezium-source-offset-storage-file-filename]]<<debezium-source-offset-storage-file-filename, `debezium.source.offset.storage.file.filename`>>
 |
@@ -262,8 +267,8 @@ There are also other options available
 
 * `io.debezium.storage.file.history.FileSchemaHistory` for non-Kafka deployments
 * `io.debezium.relational.history.MemorySchemaHistory` volatile store for test environments
-* `io.debezium.storage.redis.history.RedisSchemaHistory` for Redis deploments
-* `io.debezium.storage.redis.history.RocketMqSchemaHistory` for RocketMQ deploments
+* `io.debezium.storage.redis.history.RedisSchemaHistory` for Redis deployments
+* `io.debezium.storage.rocketmq.history.RocketMqSchemaHistory` for RocketMQ deployments
 
 |[[debezium-source-database-history-file-filename]]<<debezium-source-database-history-file-filename, `debezium.source.schema.history.internal.file.filename`>>
 |
@@ -798,7 +803,13 @@ optional https://en.wikipedia.org/wiki/JSON_Web_Token[JSON Web Token (JWT) authe
 
 |[[httpclient-authentication-type]]<<httpclient-authentication-type, `debezium.sink.http.authentication.type` >>
 |
-|Specifies the authentication type to use.  If missing, no authentication is used.  Currently, only JSON Web Token (JWT) authentication (indicated by the value `jwt`) is supported.
+|Specifies the type of authentication the HTTP client sink uses when connecting to an HTTP server.  
+Supports one of the following options:
+
+`jwt`:: JSON Web Token (JWT) authentication.
+`standard-webhooks`:: link:https://www.standardwebhooks.com/[Standard Webhooks].
+
+If you omit this property, the HTTP client sink does not use authentication headers for the connection
 
 |[[httpclient-authentication-jwt-username]]<<httpclient-authentication-jwt-username, `debezium.sink.http.authentication.jwt.username` >>
 |
@@ -819,6 +830,13 @@ optional https://en.wikipedia.org/wiki/JSON_Web_Token[JSON Web Token (JWT) authe
 |[[httpclient-authentication-jwt-refresh-token-expiration]]<<httpclient-authentication-jwt-refresh-token-expiration, `debezium.sink.http.authentication.jwt.refresh_token_expiration` >>
 |
 |Requested duration (in minutes) before the refresh token expires.
+
+|[[httpclient-authentication-webhook-secret]]<<httpclient-authentication-webhook-secret, `debezium.sink.http.authentication.webhook.secret` >>
+|
+|The webhooks signing secret that {prodname} uses to generate HMAC-SHA256 signatures for the webhook request. 
+The secret must be Base64-encoded, with a size from 24 bytes to 64 bytes (192–512 bits).
+Optionally, you can add the prefix `whsec_` to the secret to help distinguish it from other types of keys or tokens.
+For more information about implementing or validating webhook signatures, see the link:https://github.com/standard-webhooks/standard-webhooks/blob/main/spec/standard-webhooks.md[Standard Webhooks specification]. 
 
 
 |===
@@ -1530,7 +1548,7 @@ Debezium Server is enhanced to support publishing captured change events to nati
 |[[rabbitmqstream-connection]]<<rabbitmqstream-connection, `debezium.sink.rabbitmqstream.connection.*`>>
 |
 |The RabbitMQ module supports pass-through configuration.
-The connection https://github.com/rabbitmq/rabbitmqstream-java-client/blob/main/src/main/java/com/rabbitmq/client/ConnectionFactoryConfigurator.java[configuration properties] are passed to the RabbitMQ client with the prefix removed.
+The connection https://github.com/rabbitmq/rabbitmq-java-client/blob/main/src/main/java/com/rabbitmq/client/ConnectionFactoryConfigurator.java[configuration properties] are passed to the RabbitMQ client with the prefix removed.
 
 |[[rabbitmqstream-ack-timeout]]<<rabbitmqstream-ack-timeout, `debezium.sink.rabbitmqstream.ackTimeout`>>
 | 30000

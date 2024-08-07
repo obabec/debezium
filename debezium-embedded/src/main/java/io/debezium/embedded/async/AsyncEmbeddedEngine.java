@@ -148,7 +148,13 @@ public final class AsyncEmbeddedEngine<R> implements DebeziumEngine<R>, AsyncEng
 
         // Create thread pools for executing tasks and record pipelines.
         taskService = Executors.newFixedThreadPool(this.config.getInteger(ConnectorConfig.TASKS_MAX_CONFIG, () -> 1));
-        recordService = Executors.newFixedThreadPool(computeRecordThreads(this.config.getString(AsyncEmbeddedEngine.RECORD_PROCESSING_THREADS)));
+        final String processingThreads = this.config.getString(AsyncEmbeddedEngine.RECORD_PROCESSING_THREADS);
+        if (processingThreads == null || processingThreads.isBlank()) {
+            recordService = Executors.newCachedThreadPool();
+        }
+        else {
+            recordService = Executors.newFixedThreadPool(computeRecordThreads(processingThreads));
+        }
 
         // Validate provided config and prepare Kafka worker config needed for Kafka stuff, like e.g. OffsetStore.
         if (!this.config.validateAndRecord(AsyncEngineConfig.CONNECTOR_FIELDS, LOGGER::error)) {
@@ -268,6 +274,7 @@ public final class AsyncEmbeddedEngine<R> implements DebeziumEngine<R>, AsyncEng
      * @param stateBeforeStop {@link State} of the engine when the shutdown was requested.
      */
     private void close(final State stateBeforeStop) {
+        stopConnector(tasks, stateBeforeStop);
         if (headerConverter != null) {
             try {
                 headerConverter.close();
@@ -276,7 +283,14 @@ public final class AsyncEmbeddedEngine<R> implements DebeziumEngine<R>, AsyncEng
                 LOGGER.warn("Failed to close header converter: ", e);
             }
         }
-        stopConnector(tasks, stateBeforeStop);
+        if (transformations != null) {
+            try {
+                transformations.close();
+            }
+            catch (IOException e) {
+                LOGGER.warn("Failed to close transformations: ", e);
+            }
+        }
         shutDownLatch.countDown();
     }
 
@@ -437,7 +451,7 @@ public final class AsyncEmbeddedEngine<R> implements DebeziumEngine<R>, AsyncEng
             throw error;
         }
         else {
-            LOGGER.info("All tasks have stated successfully.");
+            LOGGER.info("All tasks have started successfully.");
         }
     }
 
@@ -801,7 +815,7 @@ public final class AsyncEmbeddedEngine<R> implements DebeziumEngine<R>, AsyncEng
             throw e;
         }
         catch (ExecutionException | TimeoutException e) {
-            LOGGER.warn("Flush of the offsets failed, canceling the flush.");
+            LOGGER.warn("Flush of the offsets failed, canceling the flush.", e);
             offsetWriter.cancelFlush();
             return false;
         }
@@ -988,12 +1002,10 @@ public final class AsyncEmbeddedEngine<R> implements DebeziumEngine<R>, AsyncEng
 
     /**
      * Determines the size of the thread pool which will be used for processing records. The value can be either number (provided as a {@code String} value) or
-     * a predefined placeholder from {@link ProcessingCores} enumeration. If the number of threads is provided as a number, it will be eventually limited to
-     * {@code AsyncEngineConfig.RECORD_PROCESSING_THREADS_CAP} to avoid possible overhead with too many context switches on a beefy machines with many cores, but
-     * running many other tasks.
+     * a predefined placeholder from {@link ProcessingCores} enumeration.
      *
      * @param recordProcessingThreads Requested number of processing threads as a {@code String}. It can be a number or predefined placeholder.
-     * @return Either requested number of threads or minimum of {@code AsyncEngineConfig.RECORD_PROCESSING_THREADS_CAP} and {@code AsyncEngineConfig.AVAILABLE_CORES}.
+     * @return Requested number of threads.
      */
     private int computeRecordThreads(final String recordProcessingThreads) {
         // First check if it's some our placeholder constant.
@@ -1007,9 +1019,7 @@ public final class AsyncEmbeddedEngine<R> implements DebeziumEngine<R>, AsyncEng
         if (cores <= 0) {
             throw new IllegalArgumentException("Number of cores cannot be negative or zero!");
         }
-
-        // Now we apply processor cap. As we provide all available cores as the default value, we eventually reduce the value now.
-        return Math.min(cores, AsyncEngineConfig.RECORD_PROCESSING_THREADS_CAP);
+        return cores;
     }
 
     /**

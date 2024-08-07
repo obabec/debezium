@@ -65,6 +65,7 @@ import io.debezium.data.SourceRecordAssert;
 import io.debezium.data.VerifyRecord;
 import io.debezium.doc.FixFor;
 import io.debezium.embedded.AbstractConnectorTest;
+import io.debezium.heartbeat.DatabaseHeartbeatImpl;
 import io.debezium.junit.ConditionalFail;
 import io.debezium.junit.Flaky;
 import io.debezium.junit.logging.LogInterceptor;
@@ -3259,9 +3260,51 @@ public class SqlServerConnectorIT extends AbstractConnectorTest {
         assertNoRecordsToConsume();
     }
 
+    @Test
+    @FixFor("DBZ-7801")
+    public void shouldExecuteHeartbeatActionQuery() throws Exception {
+        try {
+            connection.execute("CREATE TABLE dbo.heartbeat (id int primary key, data DATETIME)");
+            TestHelper.enableTableCdc(connection, "heartbeat");
+
+            connection.execute("INSERT INTO dbo.heartbeat (id, data) values (1, current_timestamp)");
+
+            Configuration config = TestHelper.defaultConfig()
+                    .with(SqlServerConnectorConfig.SNAPSHOT_MODE, SqlServerConnectorConfig.SnapshotMode.NO_DATA)
+                    .with(SqlServerConnectorConfig.TABLE_INCLUDE_LIST, "dbo.heartbeat")
+                    .with(SqlServerConnectorConfig.STORE_ONLY_CAPTURED_DATABASES_DDL, "true")
+                    .with(DatabaseHeartbeatImpl.HEARTBEAT_ACTION_QUERY, "UPDATE dbo.heartbeat set data = current_timestamp")
+                    .with(DatabaseHeartbeatImpl.HEARTBEAT_INTERVAL, 1000)
+                    .build();
+
+            start(SqlServerConnector.class, config);
+            assertConnectorIsRunning();
+
+            waitForStreamingStarted();
+
+            Awaitility.await().atMost(60, TimeUnit.SECONDS).until(() -> {
+                final SourceRecords records = consumeRecordsByTopic(1);
+                final List<SourceRecord> heartbeatRecords = records.recordsForTopic("server1.testDB1.dbo.heartbeat");
+                return heartbeatRecords != null && !heartbeatRecords.isEmpty();
+            });
+
+            // stop connector and clean-up any potential residual heartbeat events
+            stopConnector((success) -> {
+                consumeAvailableRecords(r -> {
+                });
+            });
+        }
+        finally {
+            TestHelper.disableTableCdc(connection, "heartbeat");
+        }
+    }
+
     private void purgeDatabaseLogs() throws SQLException {
-        connection.execute("ALTER DATABASE testDB1 SET RECOVERY SIMPLE");
-        connection.execute("DBCC SHRINKFILE (testDB1, 1)");
+
+        TestHelper.disableTableCdc(connection, "tablea");
+        TestHelper.disableTableCdc(connection, "tableb");
+
+        TestHelper.enableTableCdc(connection, "tablea");
     }
 
     private void shouldStopRetriableRestartsAtConfiguredMaximum(SqlRunnable scenario) throws Exception {
@@ -3278,6 +3321,7 @@ public class SqlServerConnectorIT extends AbstractConnectorTest {
         final Configuration config1 = TestHelper.defaultConnectorConfig()
                 .with(SqlServerConnectorConfig.DATABASE_NAMES.name(), TestHelper.TEST_DATABASE_1 + "," + TestHelper.TEST_DATABASE_2)
                 .with("errors.max.retries", 1)
+                .with(SqlServerConnectorConfig.LOG_POSITION_CHECK_ENABLED, false)
                 .build();
         final LogInterceptor logInterceptor = new LogInterceptor(ErrorHandler.class);
 

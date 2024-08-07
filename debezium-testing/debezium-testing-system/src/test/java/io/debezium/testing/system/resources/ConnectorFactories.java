@@ -104,10 +104,9 @@ public class ConnectorFactories {
                 .put("topic.prefix", connectorName)
                 .put("connector.class", "io.debezium.connector.mongodb.MongoDbConnector")
                 .put("task.max", 1)
-                .put("mongodb.user", ConfigProperties.DATABASE_MONGO_DBZ_USERNAME)
-                .put("mongodb.password", ConfigProperties.DATABASE_MONGO_DBZ_PASSWORD)
                 .put("mongodb.connection.string", controller.getPublicDatabaseUrl())
                 .put("mongodb.connection.mode", "sharded")
+                .addMongoDbzUser()
                 .addOperationRouterForTable("u", "customers");
         return cb;
     }
@@ -120,10 +119,9 @@ public class ConnectorFactories {
                 .put("topic.prefix", connectorName)
                 .put("connector.class", "io.debezium.connector.mongodb.MongoDbConnector")
                 .put("task.max", 4)
-                .put("mongodb.user", ConfigProperties.DATABASE_MONGO_DBZ_USERNAME)
-                .put("mongodb.password", ConfigProperties.DATABASE_MONGO_DBZ_PASSWORD)
                 .put("mongodb.connection.string", controller.getPublicDatabaseUrl())
                 .put("mongodb.connection.mode", "replica_set")
+                .addMongoDbzUser()
                 .addOperationRouterForTable("u", "customers");
         return cb;
     }

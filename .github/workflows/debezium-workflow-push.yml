@@ -163,7 +163,7 @@ jobs:
       # Run each PostgreSQL job sequentially
       max-parallel: 1
       matrix:
-        profile: [ "assembly", "assembly,postgres-16,pgoutput-decoder" ]
+        profile: [ "assembly,postgres-12", "assembly,postgres-16,pgoutput-decoder" ]
       fail-fast: false
     name: "PostgreSQL - ${{ matrix.profile }}"
     needs: [ check_style ]
@@ -284,6 +284,7 @@ jobs:
         with:
           repository: debezium/debezium-connector-cassandra
           path: cassandra
+          ref: ${{ github.ref_name }}
 
       - uses: ./core/.github/actions/setup-java
 
@@ -313,6 +314,7 @@ jobs:
         with:
           repository: debezium/debezium-connector-db2
           path: db2
+          ref: ${{ github.ref_name }}
 
       - uses: ./core/.github/actions/setup-java
 
@@ -342,6 +344,7 @@ jobs:
         with:
           repository: debezium/debezium-connector-informix
           path: informix
+          ref: ${{ github.ref_name }}
 
       - uses: ./core/.github/actions/setup-java
 
@@ -370,6 +373,7 @@ jobs:
         with:
           repository: debezium/debezium-connector-ibmi
           path: ibmi
+          ref: ${{ github.ref_name }}
 
       - uses: ./core/.github/actions/setup-java
 
@@ -399,6 +403,7 @@ jobs:
         with:
           repository: debezium/debezium-connector-vitess
           path: vitess
+          ref: ${{ github.ref_name }}
 
       - uses: ./core/.github/actions/setup-java
 
@@ -428,6 +433,7 @@ jobs:
         with:
           repository: debezium/debezium-connector-spanner
           path: spanner
+          ref: ${{ github.ref_name }}
 
       - uses: ./core/.github/actions/setup-java
 
@@ -447,28 +453,12 @@ jobs:
     needs: [ check_style, build_spanner ]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Action (Debezium Core)
+      - name: Checkout Action
         uses: actions/checkout@v4
-        with:
-          path: core
 
-      - name: Checkout Action (JDBC)
-        uses: actions/checkout@v4
+      - uses: ./.github/actions/build-debezium-jdbc
         with:
-          repository: debezium/debezium-connector-jdbc
-          path: jdbc
-
-      - uses: ./core/.github/actions/setup-java
-
-      - uses: ./core/.github/actions/maven-cache
-        with:
-          # We specifically only use the hash of the pom files from the core repository
-          key: maven-debezium-test-push-build-${{ hashFiles('core/**/pom.xml') }}
-
-      - uses: ./core/.github/actions/build-debezium-jdbc
-        with:
-          path-core: core
-          path-jdbc: jdbc
+          maven-cache-key: maven-debezium-test-push-build-${{ hashFiles('**/pom.xml') }}
 
   # Approx 26m
   build_debezium_server:
@@ -486,6 +476,7 @@ jobs:
         with:
           repository: debezium/debezium-server
           path: server
+          ref: ${{ github.ref_name }}
 
       - uses: ./core/.github/actions/setup-java
 

@@ -92,15 +92,14 @@ public abstract class BaseSourceTask<P extends Partition, O extends OffsetContex
 
             if (offset.isSnapshotRunning()) {
                 // The last offset was an incomplete snapshot and now the snapshot was disabled
-                if (!snapshotter.shouldSnapshotData(true, true)) {
+                if (!snapshotter.shouldSnapshotData(true, true) &&
+                        !snapshotter.shouldSnapshotSchema(true, true)) {
                     // No snapshots are allowed
                     throw new DebeziumException("The connector previously stopped while taking a snapshot, but now the connector is configured "
                             + "to never allow snapshots. Reconfigure the connector to use snapshots initially or when needed.");
                 }
             }
             else {
-
-                boolean logPositionAvailable = isLogPositionAvailable(logPositionValidator, offset, config);
 
                 if (schema.isHistorized() && !((HistorizedDatabaseSchema) schema).historyExists()) {
 
@@ -121,23 +120,28 @@ public abstract class BaseSourceTask<P extends Partition, O extends OffsetContex
                     }
                 }
 
-                if (!logPositionAvailable && !offset.isSnapshotRunning()) {
-                    LOGGER.warn("Last recorded offset is no longer available on the server.");
+                if (config.isLogPositionCheckEnabled()) {
 
-                    if (snapshotter.shouldSnapshotOnDataError()) {
+                    boolean logPositionAvailable = isLogPositionAvailable(logPositionValidator, partition, offset, config);
 
-                        LOGGER.info("The last recorded offset is no longer available but we are in {} snapshot mode. " +
-                                "Attempting to snapshot data to fill the gap.",
-                                snapshotter.name());
+                    if (!logPositionAvailable) {
+                        LOGGER.warn("Last recorded offset is no longer available on the server.");
 
-                        previousOffsets.resetOffset(previousOffsets.getTheOnlyPartition());
+                        if (snapshotter.shouldSnapshotOnDataError()) {
 
-                        return;
+                            LOGGER.info("The last recorded offset is no longer available but we are in {} snapshot mode. " +
+                                    "Attempting to snapshot data to fill the gap.",
+                                    snapshotter.name());
+
+                            previousOffsets.resetOffset(previousOffsets.getTheOnlyPartition());
+
+                            return;
+                        }
+
+                        LOGGER.warn("The connector is trying to read redo log starting at " + offset + ", but this is no longer "
+                                + "available on the server. Reconfigure the connector to use a snapshot when needed if you want to recover. " +
+                                "If not the connector will streaming from the last available position in the log");
                     }
-
-                    LOGGER.warn("The connector is trying to read redo log starting at " + offset + ", but this is no longer "
-                            + "available on the server. Reconfigure the connector to use a snapshot when needed if you want to recover. " +
-                            "If not the connector will streaming from the last available position in the log");
                 }
 
                 if (schema.isHistorized()) {
@@ -147,13 +151,13 @@ public abstract class BaseSourceTask<P extends Partition, O extends OffsetContex
         }
     }
 
-    public boolean isLogPositionAvailable(LogPositionValidator logPositionValidator, OffsetContext offsetContext, CommonConnectorConfig config) {
+    public boolean isLogPositionAvailable(LogPositionValidator logPositionValidator, Partition partition, OffsetContext offsetContext, CommonConnectorConfig config) {
 
         if (logPositionValidator == null) {
             LOGGER.warn("Current JDBC connection implementation is not providing a log position validator implementation. The check will always be 'true'");
             return true;
         }
-        return logPositionValidator.validate(offsetContext, config);
+        return logPositionValidator.validate(partition, offsetContext, config);
     }
 
     public enum State {
@@ -199,6 +203,13 @@ public abstract class BaseSourceTask<P extends Partition, O extends OffsetContex
     private final ServiceLoader<SignalChannelReader> availableSignalChannels = ServiceLoader.load(SignalChannelReader.class);
 
     private final List<NotificationChannel> notificationChannels;
+
+    /**
+     * A flag to record whether the offsets stored in the offset store are loaded for the first time.
+     * This is typically used to reduce logging in case a connector like PostgreSQL reads offsets
+     * not only on connector startup but repeatedly during execution time too.
+     */
+    private boolean offsetLoadedInPast = false;
 
     protected BaseSourceTask() {
         // Use exponential delay to log the progress frequently at first, but the quickly tapering off to once an hour...
@@ -278,7 +289,7 @@ public abstract class BaseSourceTask<P extends Partition, O extends OffsetContex
             final List<SourceRecord> records = doPoll();
             logStatistics(records);
 
-            resetErrorHandlerRetriesIfNeeded();
+            resetErrorHandlerRetriesIfNeeded(records);
 
             return records;
         }
@@ -329,12 +340,12 @@ public abstract class BaseSourceTask<P extends Partition, O extends OffsetContex
      * Should be called to reset the error handler's retry counter upon a successful poll or when known
      * that the connector task has recovered from a previous failure state.
      */
-    protected void resetErrorHandlerRetriesIfNeeded() {
+    protected void resetErrorHandlerRetriesIfNeeded(List<SourceRecord> records) {
         // When a connector throws a retriable error, the task is not re-created and instead the previous
         // error handler is passed into the new error handler, propagating the retry count. This method
-        // allows resetting that counter when a successful poll iteration step happens so that when a
+        // allows resetting that counter when a successful poll iteration step contains new records so that when a
         // future failure is thrown, the maximum retry count can be utilized.
-        if (coordinator.getErrorHandler().getRetries() > 0) {
+        if (!records.isEmpty() && coordinator != null && coordinator.getErrorHandler().getRetries() > 0) {
             coordinator.getErrorHandler().resetRetries();
         }
     }
@@ -483,7 +494,13 @@ public abstract class BaseSourceTask<P extends Partition, O extends OffsetContex
 
             if (offset != null) {
                 found = true;
-                LOGGER.info("Found previous partition offset {}: {}", partition, offset.getOffset());
+                if (offsetLoadedInPast) {
+                    LOGGER.debug("Found previous partition offset {}: {}", partition, offset.getOffset());
+                }
+                else {
+                    LOGGER.info("Found previous partition offset {}: {}", partition, offset.getOffset());
+                    offsetLoadedInPast = true;
+                }
             }
         }
 
