@@ -112,7 +112,7 @@ public class OcpArtifactServerController {
         List<String> commonArtifacts = List.of(
                 "debezium-connector-" + database,
                 "debezium-scripting",
-                "connect-converter",
+                //"connect-converter",
                 "groovy/groovy",
                 "groovy/groovy-json",
                 "groovy/groovy-jsr223");
